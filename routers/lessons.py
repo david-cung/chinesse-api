@@ -1,65 +1,81 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List, Optional
+# routers/lessons.py
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session, joinedload
+from typing import List
 from database.database import get_db
-from models.lesson import Lesson
-from models.progress import UserProgress
-from models.user import User
-from schemas.schemas import LessonResponse
-from utils.dependencies import get_current_user
-from datetime import datetime
+from models.lesson import (
+    Lesson, Vocabulary, LessonObjective, 
+    GrammarPoint, GrammarExample, Exercise
+)
+from models.character import Character
+from schemas.schemas import LessonSummary, LessonDetail
 
-router = APIRouter(prefix="/lessons", tags=["lessons"])
+router = APIRouter(prefix="/api/lessons", tags=["lessons"])
 
-@router.get("/", response_model=List[LessonResponse])
-def get_lessons(
-    hsk_level: Optional[int] = None,
-    db: Session = Depends(get_db)
-):
-    query = db.query(Lesson)
-    if hsk_level:
-        query = query.filter(Lesson.hsk_level == hsk_level)
-    return query.order_by(Lesson.order).all()
+@router.get("", response_model=List[LessonSummary])
+async def get_lessons(hsk_level: int = 1, db: Session = Depends(get_db)):
+    """Get all lessons for a specific HSK level"""
+    lessons = db.query(Lesson).filter(
+        Lesson.hsk_level == hsk_level,
+        Lesson.is_published == True
+    ).order_by(Lesson.order).all()
+    
+    result = []
+    for lesson in lessons:
+        result.append(LessonSummary(
+            id=lesson.id,
+            title=lesson.title,
+            description=lesson.description,
+            hsk_level=lesson.hsk_level,
+            character_count=len(lesson.characters),
+            vocabulary_count=len(lesson.vocabularies),
+            estimated_time=lesson.estimated_time,
+            completed=False
+        ))
+    
+    return result
 
-@router.post("/{lesson_id}/complete")
-def complete_lesson(
-    lesson_id: int,
-    score: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+@router.get("/{lesson_id}", response_model=LessonDetail)
+async def get_lesson_detail(lesson_id: int, db: Session = Depends(get_db)):
+    """Get detailed information about a specific lesson"""
+    lesson = db.query(Lesson).options(
+        joinedload(Lesson.characters),
+        joinedload(Lesson.vocabularies),
+        joinedload(Lesson.objectives),
+        joinedload(Lesson.grammar_points).joinedload(GrammarPoint.examples),
+        joinedload(Lesson.exercises)
+    ).filter(Lesson.id == lesson_id).first()
+    
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
     
-    progress = db.query(UserProgress).filter(
-        UserProgress.user_id == current_user.id,
-        UserProgress.lesson_id == lesson_id
-    ).first()
-    
-    if progress:
-        progress.completed = True
-        progress.score = max(progress.score, score)
-        progress.completed_at = datetime.utcnow()
-    else:
-        progress = UserProgress(
-            user_id=current_user.id,
-            lesson_id=lesson_id,
-            completed=True,
-            score=score,
-            completed_at=datetime.utcnow()
-        )
-        db.add(progress)
-    
-    xp_earned = score
-    current_user.xp += xp_earned
-    current_user.level = (current_user.xp // 100) + 1
-    
-    db.commit()
+    # Format grammar points with examples
+    grammar_data = []
+    for gp in sorted(lesson.grammar_points, key=lambda x: x.order):
+        grammar_data.append({
+            "id": gp.id,
+            "title": gp.title,
+            "explanation": gp.explanation,
+            "examples": [
+                {
+                    "id": ex.id,
+                    "example": ex.example,
+                    "translation": ex.translation,
+                    "order": ex.order
+                }
+                for ex in sorted(gp.examples, key=lambda x: x.order)
+            ]
+        })
     
     return {
-        "message": "Lesson completed",
-        "xp_earned": xp_earned,
-        "new_xp": current_user.xp,
-        "new_level": current_user.level
+        "id": lesson.id,
+        "title": lesson.title,
+        "description": lesson.description,
+        "hsk_level": lesson.hsk_level,
+        "estimated_time": lesson.estimated_time,
+        "characters": lesson.characters,
+        "vocabulary": lesson.vocabularies,
+        "objectives": sorted(lesson.objectives, key=lambda x: x.order),
+        "grammar": grammar_data,
+        "exercises": sorted(lesson.exercises, key=lambda x: x.order)
     }

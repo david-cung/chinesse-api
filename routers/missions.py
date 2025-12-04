@@ -67,3 +67,15 @@ def complete_mission(
     db.commit()
     
     return {"message": "Mission completed", "xp_earned": mission.reward_xp}
+
+@router.get("/{mission_id}", response_model=DailyMissionResponse)
+def get_mission(mission_id: int, db: Session = Depends(get_db)):
+    """
+    Get a specific mission by ID
+    """
+    mission = db.query(DailyMission).filter(DailyMission.id == mission_id).first()
+    
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    
+    return mission

@@ -1,18 +1,47 @@
+# main.py
+import sys
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, Base
-from routers import auth, users, characters, lessons, leaderboard, missions
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
+# Configure logging (no emojis for Windows)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("api.log", encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
+logger = logging.getLogger(__name__)
+
+# Import ALL models to register with SQLAlchemy
+logger.info("Importing models...")
+from models import user, character, progress
+from models.lesson import (
+    Lesson, Vocabulary, LessonObjective,
+    GrammarPoint, GrammarExample, Exercise,
+    lesson_characters, lesson_vocabulary
+)
+
+# Create tables
+logger.info("Creating database tables...")
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("[SUCCESS] Database tables created!")
+except Exception as e:
+    logger.error(f"[ERROR] Error creating tables: {e}")
+
+# Create FastAPI app
 app = FastAPI(
     title="Tian Tian API",
     version="1.0.0",
     description="Chinese Learning Platform API"
 )
 
-# CORS Configuration
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3001"],
@@ -20,6 +49,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Import routers
+from routers import auth, users, characters, lessons, leaderboard, missions
 
 # Include routers
 app.include_router(auth.router)
@@ -41,6 +73,12 @@ def read_root():
 def health_check():
     return {"status": "healthy"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 80)
+    logger.info("[STARTUP] Tian Tian API Server Starting...")
+    logger.info("=" * 80)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("[SHUTDOWN] Server shutting down...")
