@@ -12,14 +12,9 @@ test-instance-runner:
   - echo "========================================="
   - echo "Testing Instance Runner"
   - echo "========================================="
-  - echo "Runner name: $CI_RUNNER_DESCRIPTION"
-  - echo "Runner ID: $CI_RUNNER_ID"
-  - echo "Runner tags: $CI_RUNNER_TAGS"
-  - echo "GitLab CI: $CI"
-  - echo "Pipeline ID: $CI_PIPELINE_ID"
-  - echo "Job ID: $CI_JOB_ID"
+  - echo "Runner name is available"
+  - echo "GitLab CI is active"
+  - echo "Pipeline is running"
   - echo "========================================="
   - echo "✅ Instance runner is working!"
   - echo "========================================="
-  only:
-  - main
