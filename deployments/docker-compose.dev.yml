@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    # Instead of pulling an image, build from local Dockerfile
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    # Mount source code for hot-reloading (changes reflect instantly)
+    volumes:
+      - ..:/code
+    environment:
+      - ENV=development
+      - DEBUG=True
+    # Override the command to enable reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # Expose FastAPI port directly for easy access
+    ports:
+      - "8000:8000"
+
+  nginx:
+    volumes:
+      # Use a simple nginx config for local if needed, or same as prod
+      - ../nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80" # Map to 8080 to avoid conflicts if you have other services
+
+  db:
+    ports:
+      - "5432:5432" # Expose DB port to use tools like DBeaver/pgAdmin
