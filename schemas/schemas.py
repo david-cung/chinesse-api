@@ -13,6 +13,11 @@ class UserCreate(UserBase):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    """Schema for Google OAuth login/register"""
+    id_token: str  # Google ID token from client
+
+
 class UserResponse(UserBase):
     id: int
     level: int
@@ -20,7 +25,22 @@ class UserResponse(UserBase):
     streak: int
     gems: int
     avatar: Optional[str] = None
+    full_name: Optional[str] = None
+    auth_provider: str = "email"
+    is_verified: bool = False
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserSummaryResponse(BaseModel):
+    """Summary response for home screen"""
+    id: str
+    name: str
+    greeting: str
+    streakDays: int
+    avatarUrl: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -29,6 +49,14 @@ class UserResponse(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class TokenWithUser(BaseModel):
+    """Token response with user data included"""
+    access_token: str
+    token_type: str
+    user: UserResponse
+
 
 
 # ==================== Character Schemas ====================
@@ -159,6 +187,42 @@ class LessonSummary(BaseModel):
     estimated_time: int = 30
     completed: bool = False
 
+    class Config:
+        from_attributes = True
+
+
+class LessonWithProgress(BaseModel):
+    """Schema cho bài học kèm tiến độ học của user"""
+    id: int
+    title: str
+    description: Optional[str] = None
+    hsk_level: int
+    order: int = 0
+    character_count: int = 0
+    vocabulary_count: int = 0
+    exercise_count: int = 0
+    estimated_time: int = 30
+    
+    # Trạng thái tiến độ của user
+    is_started: bool = False  # User đã bắt đầu học bài này chưa
+    is_completed: bool = False  # User đã hoàn thành bài này chưa
+    progress_percent: float = 0.0  # Tiến độ học (0-100%)
+    score: Optional[int] = None  # Điểm số cao nhất
+    exercises_completed: int = 0  # Số bài tập đã làm
+    last_accessed_at: Optional[datetime] = None  # Lần cuối học
+    
+    class Config:
+        from_attributes = True
+
+
+class HSKLevelLessonsResponse(BaseModel):
+    """Response cho danh sách bài học theo HSK level"""
+    hsk_level: int
+    total_lessons: int
+    completed_lessons: int
+    overall_progress: float  # Tiến độ tổng thể của cấp độ này
+    lessons: List[LessonWithProgress]
+    
     class Config:
         from_attributes = True
 

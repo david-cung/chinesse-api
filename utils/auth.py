@@ -86,3 +86,77 @@ def authenticate_user(db, email: str, password: str):
         return None
         
     return user
+
+
+# ==================== FastAPI Dependencies ====================
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db = None):
+    """
+    Dependency để lấy current user từ JWT token.
+    Bắt buộc phải đăng nhập.
+    """
+    from database.database import SessionLocal
+    from models.user import User
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    payload = decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise credentials_exception
+    
+    # Get database session
+    if db is None:
+        db = SessionLocal()
+        should_close = True
+    else:
+        should_close = False
+    
+    try:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        if user is None:
+            raise credentials_exception
+        return user
+    finally:
+        if should_close:
+            db.close()
+
+
+def get_current_user_optional(token: str = Depends(oauth2_scheme_optional)):
+    """
+    Dependency để lấy current user từ JWT token.
+    Tùy chọn - trả về None nếu không có token.
+    """
+    from database.database import SessionLocal
+    from models.user import User
+    
+    if token is None:
+        return None
+    
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        return user
+    finally:
+        db.close()

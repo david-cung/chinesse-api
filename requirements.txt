@@ -9,4 +9,5 @@ python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 alembic==1.12.1
-email-validator==2.1.0  # Add this line
+email-validator==2.1.0
+google-auth==2.25.2  # For Google OAuth token verification

@@ -41,10 +41,10 @@ app = FastAPI(
     description="Chinese Learning Platform API"
 )
 
-# CORS
+# CORS - Allow React Native and web apps
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["*"],  # Allow all origins for mobile apps
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
