@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # Import routers
-from routers import auth, users, characters, lessons, leaderboard, missions
+from routers import auth, users, characters, lessons, leaderboard, missions, learning
 
 # Include routers
 app.include_router(auth.router)
@@ -60,6 +60,7 @@ app.include_router(characters.router)
 app.include_router(lessons.router)
 app.include_router(leaderboard.router)
 app.include_router(missions.router)
+app.include_router(learning.router)
 
 @app.get("/")
 def read_root():

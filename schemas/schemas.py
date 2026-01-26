@@ -338,3 +338,43 @@ class UserStatsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ==================== Learning Continue Schemas ====================
+class CourseInfo(BaseModel):
+    id: str
+    level: str
+
+
+class LessonInfo(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+
+
+class ProgressInfo(BaseModel):
+    completedPercent: float
+    lastUnitId: Optional[str] = None
+
+
+class LearningContinueResponse(BaseModel):
+    course: CourseInfo
+    lesson: LessonInfo
+    progress: ProgressInfo
+
+
+# ==================== Course Lessons Schemas ====================
+class LessonItem(BaseModel):
+    """Individual lesson in course listing"""
+    id: str
+    title: str
+    vocabCount: int
+    durationMinutes: int
+    status: str  # "completed", "in_progress", "locked"
+    progressPercent: Optional[float] = None  # Only for in_progress
+
+
+class CourseLessonsResponse(BaseModel):
+    """Response for GET /courses/{courseId}/lessons"""
+    course: CourseInfo
+    lessons: List[LessonItem]
