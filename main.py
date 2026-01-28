@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Import ALL models to register with SQLAlchemy
 logger.info("Importing models...")
-from models import user, character, progress
+from models import user, character, progress, unit
 from models.lesson import (
     Lesson, Vocabulary, LessonObjective,
     GrammarPoint, GrammarExample, Exercise,

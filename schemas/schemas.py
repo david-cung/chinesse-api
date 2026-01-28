@@ -378,3 +378,32 @@ class CourseLessonsResponse(BaseModel):
     """Response for GET /courses/{courseId}/lessons"""
     course: CourseInfo
     lessons: List[LessonItem]
+
+
+# ==================== Learning Resume Schemas ====================
+class ResumeUnitInfo(BaseModel):
+    """Unit info for resume response"""
+    id: str
+    type: str
+    order: int
+
+
+class ResumeProgressInfo(BaseModel):
+    """Progress info for resume response"""
+    lessonPercent: float
+    unitPercent: float
+
+
+class ResumeNavigationInfo(BaseModel):
+    """Navigation info for resume response"""
+    screen: str
+    params: dict
+
+
+class LearningResumeResponse(BaseModel):
+    """Response for GET /api/v1/learning/resume"""
+    course: CourseInfo
+    lesson: LessonInfo
+    unit: ResumeUnitInfo
+    progress: ResumeProgressInfo
+    navigation: ResumeNavigationInfo

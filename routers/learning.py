@@ -260,3 +260,159 @@ def get_course_lessons(
         ),
         lessons=lesson_items
     )
+
+
+# ==================== Resume Learning Endpoint ====================
+from schemas.schemas import (
+    LearningResumeResponse,
+    ResumeUnitInfo,
+    ResumeProgressInfo,
+    ResumeNavigationInfo
+)
+from models.unit import Unit, UnitProgress, UNIT_TYPE_SCREENS
+
+
+@router.get("/resume", response_model=LearningResumeResponse)
+def get_learning_resume(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the lesson and unit a user should resume learning from.
+    
+    Priority rules:
+    1. Find lesson with status = "in_progress"
+    2. If none, return first lesson not started
+    3. If all lessons completed, return last lesson
+    
+    Inside a lesson:
+    - Find first unit with status != "completed", ordered by unit.order
+    
+    Returns: course, lesson, unit, progress, navigation
+    """
+    
+    # Step 1: Find lesson with in_progress status
+    in_progress = db.query(UserProgress).filter(
+        UserProgress.user_id == current_user.id,
+        UserProgress.completed == False,
+        UserProgress.progress_percent > 0
+    ).order_by(desc(UserProgress.last_accessed_at)).first()
+    
+    if in_progress and in_progress.lesson:
+        lesson = in_progress.lesson
+        lesson_progress = in_progress
+    else:
+        # Step 2: Find first lesson not started
+        # Get all user's progress lesson IDs
+        completed_or_started_lesson_ids = db.query(UserProgress.lesson_id).filter(
+            UserProgress.user_id == current_user.id
+        ).all()
+        completed_ids = [lid[0] for lid in completed_or_started_lesson_ids]
+        
+        # Find first unstarted lesson (start with HSK 1)
+        lesson = db.query(Lesson).filter(
+            Lesson.is_published == True,
+            ~Lesson.id.in_(completed_ids) if completed_ids else True
+        ).order_by(Lesson.hsk_level, Lesson.order).first()
+        
+        if not lesson:
+            # Step 3: All lessons completed, return the last accessed one
+            last_progress = db.query(UserProgress).filter(
+                UserProgress.user_id == current_user.id
+            ).order_by(desc(UserProgress.last_accessed_at)).first()
+            
+            if last_progress and last_progress.lesson:
+                lesson = last_progress.lesson
+                lesson_progress = last_progress
+            else:
+                # Fallback: return first lesson of HSK 1
+                lesson = db.query(Lesson).filter(
+                    Lesson.hsk_level == 1,
+                    Lesson.is_published == True
+                ).order_by(Lesson.order).first()
+                
+                if not lesson:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="No lessons available"
+                    )
+                lesson_progress = None
+        else:
+            lesson_progress = None
+    
+    # Get lesson progress percent
+    lesson_percent = lesson_progress.progress_percent if lesson_progress else 0.0
+    
+    # Step 4: Find first unfinished unit in the lesson
+    # Get all units for this lesson
+    units = db.query(Unit).filter(
+        Unit.lesson_id == lesson.id
+    ).order_by(Unit.order).all()
+    
+    if not units:
+        # No units defined - create default vocabulary unit
+        current_unit = None
+        unit_id = f"unit_{lesson.id}_1"
+        unit_type = "vocabulary"
+        unit_order = 1
+        unit_percent = 0.0
+    else:
+        # Get user's progress for these units
+        unit_ids = [u.id for u in units]
+        unit_progress_records = db.query(UnitProgress).filter(
+            UnitProgress.user_id == current_user.id,
+            UnitProgress.unit_id.in_(unit_ids)
+        ).all()
+        
+        unit_progress_map = {up.unit_id: up for up in unit_progress_records}
+        
+        # Find first unfinished unit
+        current_unit = None
+        for u in units:
+            up = unit_progress_map.get(u.id)
+            if not up or not up.completed:
+                current_unit = u
+                unit_percent = up.progress_percent if up else 0.0
+                break
+        
+        if not current_unit:
+            # All units completed, return last unit
+            current_unit = units[-1]
+            up = unit_progress_map.get(current_unit.id)
+            unit_percent = 100.0
+        
+        unit_id = f"unit_{lesson.id}_{current_unit.order}"
+        unit_type = current_unit.type
+        unit_order = current_unit.order
+    
+    # Build navigation info
+    screen_name = UNIT_TYPE_SCREENS.get(unit_type, "LessonDetail")
+    
+    return LearningResumeResponse(
+        course=CourseInfo(
+            id=f"hsk{lesson.hsk_level}",
+            level=get_hsk_level_name(lesson.hsk_level)
+        ),
+        lesson=LessonInfo(
+            id=f"lesson_{lesson.id}",
+            title=lesson.title,
+            description=lesson.description
+        ),
+        unit=ResumeUnitInfo(
+            id=unit_id,
+            type=unit_type,
+            order=unit_order
+        ),
+        progress=ResumeProgressInfo(
+            lessonPercent=lesson_percent,
+            unitPercent=unit_percent
+        ),
+        navigation=ResumeNavigationInfo(
+            screen=screen_name,
+            params={
+                "lessonId": f"lesson_{lesson.id}",
+                "unitId": unit_id
+            }
+        )
+    )
+

@@ -78,3 +78,4 @@ coverage.xml
 venv/
 .venv/
 env/
+.env
