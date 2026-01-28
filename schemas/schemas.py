@@ -233,6 +233,12 @@ class LessonDetail(BaseModel):
     description: Optional[str] = None
     hsk_level: int
     estimated_time: int = 30
+    # New fields for progress tracking
+    vocabCount: int = 0
+    durationMinutes: int = 0
+    status: str = "locked"  # "completed", "in_progress", "locked"
+    progressPercent: Optional[float] = None
+    # Content
     characters: List[CharacterResponse] = []
     vocabulary: List[VocabularyResponse] = []
     objectives: List[LessonObjectiveResponse] = []

@@ -1,14 +1,17 @@
 # routers/lessons.py
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+from typing import List, Optional
 from database.database import get_db
 from models.lesson import (
     Lesson, Vocabulary, LessonObjective, 
     GrammarPoint, GrammarExample, Exercise
 )
 from models.character import Character
+from models.progress import UserProgress
+from models.user import User
 from schemas.schemas import LessonSummary, LessonDetail
+from utils.dependencies import get_current_user_optional
 
 router = APIRouter(prefix="/api/lessons", tags=["lessons"])
 
@@ -36,8 +39,12 @@ async def get_lessons(hsk_level: int = 1, db: Session = Depends(get_db)):
     return result
 
 @router.get("/{lesson_id}", response_model=LessonDetail)
-async def get_lesson_detail(lesson_id: int, db: Session = Depends(get_db)):
-    """Get detailed information about a specific lesson"""
+async def get_lesson_detail(
+    lesson_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """Get detailed information about a specific lesson with user progress"""
     lesson = db.query(Lesson).options(
         joinedload(Lesson.characters),
         joinedload(Lesson.vocabularies),
@@ -48,6 +55,49 @@ async def get_lesson_detail(lesson_id: int, db: Session = Depends(get_db)):
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    # Get user progress for this lesson
+    status = "locked"
+    progress_percent = None
+    
+    if current_user:
+        # Get this lesson's progress
+        user_progress = db.query(UserProgress).filter(
+            UserProgress.user_id == current_user.id,
+            UserProgress.lesson_id == lesson_id
+        ).first()
+        
+        if user_progress:
+            if user_progress.completed:
+                status = "completed"
+                progress_percent = 100.0
+            else:
+                status = "in_progress"
+                progress_percent = user_progress.progress_percent or 0.0
+        else:
+            # Check if previous lesson is completed (to determine if this is unlocked)
+            previous_lesson = db.query(Lesson).filter(
+                Lesson.hsk_level == lesson.hsk_level,
+                Lesson.order < lesson.order,
+                Lesson.is_published == True
+            ).order_by(Lesson.order.desc()).first()
+            
+            if previous_lesson:
+                prev_progress = db.query(UserProgress).filter(
+                    UserProgress.user_id == current_user.id,
+                    UserProgress.lesson_id == previous_lesson.id,
+                    UserProgress.completed == True
+                ).first()
+                
+                if prev_progress:
+                    status = "in_progress"  # Available to start
+                    progress_percent = 0.0
+                else:
+                    status = "locked"
+            else:
+                # First lesson in level - always available
+                status = "in_progress"
+                progress_percent = 0.0
     
     # Format grammar points with examples
     grammar_data = []
@@ -73,9 +123,14 @@ async def get_lesson_detail(lesson_id: int, db: Session = Depends(get_db)):
         "description": lesson.description,
         "hsk_level": lesson.hsk_level,
         "estimated_time": lesson.estimated_time,
+        "vocabCount": len(lesson.vocabularies),
+        "durationMinutes": lesson.estimated_time or 0,
+        "status": status,
+        "progressPercent": progress_percent,
         "characters": lesson.characters,
         "vocabulary": lesson.vocabularies,
         "objectives": sorted(lesson.objectives, key=lambda x: x.order),
         "grammar": grammar_data,
         "exercises": sorted(lesson.exercises, key=lambda x: x.order)
     }
+
