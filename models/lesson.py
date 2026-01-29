@@ -44,10 +44,25 @@ class Vocabulary(Base):
     word = Column(String(50), nullable=False, index=True)
     pinyin = Column(String(100), nullable=False)
     meaning = Column(String(255), nullable=False)
-    example = Column(Text)
+    example = Column(Text)  # Legacy field, kept for backward compatibility
     hsk_level = Column(Integer, index=True)
     
     lessons = relationship("Lesson", secondary=lesson_vocabulary, back_populates="vocabularies")
+    examples = relationship("VocabularyExample", back_populates="vocabulary", cascade="all, delete-orphan")
+
+
+class VocabularyExample(Base):
+    """Câu mẫu cho từ vựng"""
+    __tablename__ = "vocabulary_examples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vocabulary_id = Column(Integer, ForeignKey('vocabularies.id', ondelete='CASCADE'), nullable=False, index=True)
+    sentence = Column(Text, nullable=False)  # Câu tiếng Trung
+    pinyin = Column(String(500))  # Phiên âm
+    translation = Column(Text)  # Bản dịch tiếng Việt
+    order = Column(Integer, default=0)
+    
+    vocabulary = relationship("Vocabulary", back_populates="examples")
 
 
 class LessonObjective(Base):

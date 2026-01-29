@@ -81,11 +81,25 @@ class CharacterResponse(CharacterBase):
 
 
 # ==================== Vocabulary Schemas ====================
+class VocabularyExampleBase(BaseModel):
+    sentence: str
+    pinyin: Optional[str] = None
+    translation: Optional[str] = None
+
+
+class VocabularyExampleResponse(VocabularyExampleBase):
+    id: int
+    order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 class VocabularyBase(BaseModel):
     word: str
     pinyin: str
     meaning: str
-    example: Optional[str] = None
+    example: Optional[str] = None  # Legacy field
 
 
 class VocabularyCreate(VocabularyBase):
@@ -95,6 +109,7 @@ class VocabularyCreate(VocabularyBase):
 class VocabularyResponse(VocabularyBase):
     id: int
     hsk_level: Optional[int] = None
+    examples: List[VocabularyExampleResponse] = []
 
     class Config:
         from_attributes = True
