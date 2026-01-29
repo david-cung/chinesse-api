@@ -238,6 +238,11 @@ class LessonDetail(BaseModel):
     durationMinutes: int = 0
     status: str = "locked"  # "completed", "in_progress", "locked"
     progressPercent: Optional[float] = None
+    # Learned counts
+    learnedVocabCount: int = 0
+    learnedGrammarCount: int = 0
+    learnedListeningCount: int = 0
+    learnedSpeakingCount: int = 0
     # Content
     characters: List[CharacterResponse] = []
     vocabulary: List[VocabularyResponse] = []
@@ -413,3 +418,10 @@ class LearningResumeResponse(BaseModel):
     unit: ResumeUnitInfo
     progress: ResumeProgressInfo
     navigation: ResumeNavigationInfo
+
+
+class TrackItemRequest(BaseModel):
+    """Yêu cầu đánh dấu một mục nội dung đã được học/truy cập"""
+    item_type: str  # "vocabulary", "grammar_example", "listening", "speaking", "character"
+    item_id: int
+    completed: bool = True

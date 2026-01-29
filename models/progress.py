@@ -52,3 +52,26 @@ class UserMission(Base):
     progress = Column(Integer, default=0)
     completed = Column(Boolean, default=False)
     date = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserItemProgress(Base):
+    """
+    Theo dõi tiến độ của từng mục nội dung cụ thể (từ vựng, ví dụ ngữ pháp, nghe, nói).
+    """
+    __tablename__ = "user_item_progress"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'item_type', 'item_id', name='unique_user_item_tracking'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Loại item: "vocabulary", "grammar_example", "listening", "speaking", "character"
+    item_type = Column(String(50), nullable=False)
+    item_id = Column(Integer, nullable=False)
+    
+    completed = Column(Boolean, default=True)
+    last_accessed_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="item_progress")

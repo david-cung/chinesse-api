@@ -10,8 +10,10 @@ from schemas.schemas import (
     LearningContinueResponse, 
     CourseInfo, 
     LessonInfo, 
-    ProgressInfo
+    ProgressInfo,
+    TrackItemRequest
 )
+from models.progress import UserProgress, UserItemProgress
 from utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/learning", tags=["learning"])
@@ -415,4 +417,45 @@ def get_learning_resume(
             }
         )
     )
+
+
+@router.post("/track", status_code=status.HTTP_200_OK)
+def track_item_progress(
+    request: TrackItemRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Đánh dấu một mục nội dung (từ vựng, ví dụ ngữ pháp, v.v.) đã được người dùng học/truy cập.
+    """
+    # Tìm hoặc tạo bản ghi tiến độ cho item này
+    item_progress = db.query(UserItemProgress).filter(
+        UserItemProgress.user_id == current_user.id,
+        UserItemProgress.item_type == request.item_type,
+        UserItemProgress.item_id == request.item_id
+    ).first()
+    
+    if not item_progress:
+        item_progress = UserItemProgress(
+            user_id=current_user.id,
+            item_type=request.item_type,
+            item_id=request.item_id,
+            completed=request.completed
+        )
+        db.add(item_progress)
+    else:
+        item_progress.completed = request.completed
+        # Cập nhật thời gian truy cập cuối (tự động qua onupdate)
+    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error tracking item progress: {str(e)}"
+        )
+    
+    return {"status": "success", "message": f"Tracked {request.item_type} {request.item_id}"}
+
 

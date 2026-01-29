@@ -8,7 +8,7 @@ from models.lesson import (
     GrammarPoint, GrammarExample, Exercise
 )
 from models.character import Character
-from models.progress import UserProgress
+from models.progress import UserProgress, UserItemProgress
 from models.user import User
 from schemas.schemas import LessonSummary, LessonDetail
 from utils.dependencies import get_current_user_optional
@@ -59,6 +59,10 @@ async def get_lesson_detail(
     # Get user progress for this lesson
     status = "locked"
     progress_percent = None
+    learned_vocab_count = 0
+    learned_grammar_count = 0
+    learned_listening_count = 0
+    learned_speaking_count = 0
     
     if current_user:
         # Get this lesson's progress
@@ -98,6 +102,52 @@ async def get_lesson_detail(
                 # First lesson in level - always available
                 status = "in_progress"
                 progress_percent = 0.0
+
+        # Calculate learned items
+        # 1. Vocabulary
+        vocab_ids = [v.id for v in lesson.vocabularies]
+        if vocab_ids:
+            learned_vocab_count = db.query(UserItemProgress).filter(
+                UserItemProgress.user_id == current_user.id,
+                UserItemProgress.item_type == "vocabulary",
+                UserItemProgress.item_id.in_(vocab_ids),
+                UserItemProgress.completed == True
+            ).count()
+        
+        # 2. Grammar Examples
+        grammar_example_ids = []
+        for gp in lesson.grammar_points:
+            grammar_example_ids.extend([ex.id for ex in gp.examples])
+        
+        if grammar_example_ids:
+            learned_grammar_count = db.query(UserItemProgress).filter(
+                UserItemProgress.user_id == current_user.id,
+                UserItemProgress.item_type == "grammar_example",
+                UserItemProgress.item_id.in_(grammar_example_ids),
+                UserItemProgress.completed == True
+            ).count()
+            
+        # 3. Listening & Speaking (these are units)
+        from models.unit import Unit
+        lesson_units = db.query(Unit).filter(Unit.lesson_id == lesson_id).all()
+        listening_unit_ids = [u.id for u in lesson_units if u.type == "listening"]
+        speaking_unit_ids = [u.id for u in lesson_units if u.type == "speaking"]
+        
+        if listening_unit_ids:
+            learned_listening_count = db.query(UserItemProgress).filter(
+                UserItemProgress.user_id == current_user.id,
+                UserItemProgress.item_type == "listening",
+                UserItemProgress.item_id.in_(listening_unit_ids),
+                UserItemProgress.completed == True
+            ).count()
+            
+        if speaking_unit_ids:
+            learned_speaking_count = db.query(UserItemProgress).filter(
+                UserItemProgress.user_id == current_user.id,
+                UserItemProgress.item_type == "speaking",
+                UserItemProgress.item_id.in_(speaking_unit_ids),
+                UserItemProgress.completed == True
+            ).count()
     
     # Format grammar points with examples
     grammar_data = []
@@ -127,10 +177,15 @@ async def get_lesson_detail(
         "durationMinutes": lesson.estimated_time or 0,
         "status": status,
         "progressPercent": progress_percent,
+        "learnedVocabCount": learned_vocab_count,
+        "learnedGrammarCount": learned_grammar_count,
+        "learnedListeningCount": learned_listening_count,
+        "learnedSpeakingCount": learned_speaking_count,
         "characters": lesson.characters,
         "vocabulary": lesson.vocabularies,
         "objectives": sorted(lesson.objectives, key=lambda x: x.order),
         "grammar": grammar_data,
         "exercises": sorted(lesson.exercises, key=lambda x: x.order)
     }
+
 
