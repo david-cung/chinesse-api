@@ -149,21 +149,22 @@ async def get_lesson_detail(
                 UserItemProgress.completed == True
             ).count()
     
-    # Format grammar points with examples
+    # Format grammar data based on vocabulary examples
+    # Each vocabulary word has its corresponding example sentences
     grammar_data = []
-    for gp in sorted(lesson.grammar_points, key=lambda x: x.order):
+    for vocab in lesson.vocabularies:
         grammar_data.append({
-            "id": gp.id,
-            "title": gp.title,
-            "explanation": gp.explanation,
+            "id": vocab.id,
+            "title": vocab.word,
+            "explanation": f"{vocab.pinyin} - {vocab.meaning}",
             "examples": [
                 {
                     "id": ex.id,
-                    "example": ex.example,
+                    "example": ex.sentence,
                     "translation": ex.translation,
                     "order": ex.order
                 }
-                for ex in sorted(gp.examples, key=lambda x: x.order)
+                for ex in sorted(vocab.examples, key=lambda x: x.order)
             ]
         })
     
