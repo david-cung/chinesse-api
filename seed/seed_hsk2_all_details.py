@@ -4,10 +4,15 @@ sys.path.append('.')
 
 from sqlalchemy.orm import Session
 from database.database import SessionLocal, engine
+from models.user import User
+from models.character import Character
+from models.progress import DailyMission
+from models.review import ReviewCard, ReviewRating, ReviewSession
+from models.quiz import QuizAttempt, WordStats
+from models.sentence import Sentence
 from models.lesson import (
     Lesson, Vocabulary, LessonObjective, GrammarPoint, GrammarExample, Exercise
 )
-from models.character import Character
 
 def add_characters_to_lesson(db, lesson, characters_data):
     """Helper function to add characters to a lesson"""

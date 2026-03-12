@@ -4,9 +4,7 @@ sys.path.append('.')
 
 from sqlalchemy.orm import Session
 from database.database import SessionLocal, engine, Base
-from models.user import User
-from models.character import Character
-from models.progress import DailyMission
+from models import user, character, progress, unit, review, quiz, sentence, lesson
 from utils.auth import get_password_hash
 
 # Import ALL lesson models (including association tables)
@@ -30,7 +28,19 @@ def seed_database():
         print("=" * 80)
 
         # Drop before create (IMPORTANT: avoids FK constraint errors)
-        Base.metadata.drop_all(bind=engine)
+        if engine.url.drivername.startswith("postgresql"):
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                # Get all table names in the current schema
+                result = conn.execute(text("""
+                    SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+                """))
+                for row in result:
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{row[0]}" CASCADE'))
+                conn.commit()
+        else:
+            Base.metadata.drop_all(bind=engine)
+            
         Base.metadata.create_all(bind=engine)
 
         print("\n[SUCCESS] Tables created!")

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Import ALL models to register with SQLAlchemy
 logger.info("Importing models...")
-from models import user, character, progress, unit
+from models import user, character, progress, unit, review, quiz, sentence
 from models.lesson import (
     Lesson, Vocabulary, LessonObjective,
     GrammarPoint, GrammarExample, Exercise,
@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # Import routers
-from routers import auth, users, characters, lessons, leaderboard, missions, learning, pronunciation
+from routers import auth, users, characters, lessons, learning, missions, leaderboard, pronunciation, review, quiz, stats, sentences
 
 # Include routers
 app.include_router(auth.router)
@@ -62,6 +62,10 @@ app.include_router(leaderboard.router)
 app.include_router(missions.router)
 app.include_router(learning.router)
 app.include_router(pronunciation.router)
+app.include_router(review.router)
+app.include_router(quiz.router)
+app.include_router(stats.router)
+app.include_router(sentences.router)
 
 @app.get("/")
 def read_root():

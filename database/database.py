@@ -8,19 +8,25 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# PostgreSQL Database URL
+# Database URL - from .env (PostgreSQL) or fallback to SQLite
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:password@localhost:5432/tiantian"
+    "sqlite:///./tiantian.db"
 )
 
-# Create engine
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,  # Verify connections before using
-    pool_size=10,  # Connection pool size
-    max_overflow=20  # Max overflow connections
-)
+# Create engine with correct args depending on DB type
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20
+    )
 
 # Create session
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -3,7 +3,13 @@ Seed script to add lessons for HSK 2, 3, 4, 5
 Each level should have 14 lessons total
 """
 from database.database import SessionLocal
-from models.lesson import Lesson, Vocabulary, LessonObjective
+from models.user import User
+from models.character import Character
+from models.progress import DailyMission
+from models.review import ReviewCard, ReviewRating, ReviewSession
+from models.quiz import QuizAttempt, WordStats
+from models.sentence import Sentence
+from models.lesson import Lesson, Vocabulary, LessonObjective, Exercise
 from models.unit import Unit
 
 # HSK 2 Topics (intermediate beginner)

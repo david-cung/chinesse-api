@@ -1,15 +1,15 @@
-"""
-Seed script để thêm câu mẫu cho từ vựng HSK1
-Chạy: PYTHONPATH=/Users/dc/Documents/code/tian-tian-backend python seed/seed_vocabulary_examples.py
-"""
 import sys
-sys.path.insert(0, '/Users/dc/Documents/code/tian-tian-backend')
+sys.path.append('.')
 
 from database.database import SessionLocal, engine, Base
-from models.lesson import Vocabulary, VocabularyExample
+from models import user, character, progress, unit, review, quiz, sentence
+from models.lesson import (
+    Lesson, Vocabulary, LessonObjective, GrammarPoint, GrammarExample, Exercise, VocabularyExample
+)
 
-# Tạo bảng mới nếu chưa có
-Base.metadata.create_all(bind=engine)
+# No need to recreate all tables here if seed_data.py already does it, 
+# but making sure they are registered.
+# Base.metadata.create_all(bind=engine)
 
 # Dữ liệu câu mẫu cho từ vựng phổ biến HSK1
 VOCABULARY_EXAMPLES = {

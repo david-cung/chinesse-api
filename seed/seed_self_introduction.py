@@ -4,6 +4,12 @@ sys.path.append('.')
 
 from sqlalchemy.orm import Session
 from database.database import SessionLocal, engine
+from models.user import User
+from models.character import Character
+from models.progress import DailyMission
+from models.review import ReviewCard, ReviewRating, ReviewSession
+from models.quiz import QuizAttempt, WordStats
+from models.sentence import Sentence
 from models.lesson import (
     Lesson, 
     Vocabulary, 
@@ -12,7 +18,6 @@ from models.lesson import (
     GrammarExample, 
     Exercise
 )
-from models.character import Character
 
 def seed_self_introduction():
     """Seed detailed data for Self Introduction lesson (Lesson 2)"""

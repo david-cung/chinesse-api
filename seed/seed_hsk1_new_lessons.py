@@ -3,8 +3,13 @@ Seed script for 10 new HSK1 lessons
 Topics with gradually increasing difficulty for beginners
 """
 from database.database import SessionLocal
-from models.lesson import Lesson, Vocabulary, LessonObjective, Exercise
+from models.user import User
 from models.character import Character
+from models.progress import DailyMission
+from models.review import ReviewCard, ReviewRating, ReviewSession
+from models.quiz import QuizAttempt, WordStats
+from models.sentence import Sentence
+from models.lesson import Lesson, Vocabulary, LessonObjective, Exercise
 
 def seed_hsk1_lessons():
     db = SessionLocal()

@@ -440,3 +440,119 @@ class TrackItemRequest(BaseModel):
     item_type: str  # "vocabulary", "grammar_example", "listening", "speaking", "character"
     item_id: int
     completed: bool = True
+
+
+# ==================== Review Schemas ====================
+class ReviewRatingBase(BaseModel):
+    name: str
+    duration_minutes: int
+
+class ReviewRatingResponse(ReviewRatingBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class ReviewCardBase(BaseModel):
+    vocabulary_id: int
+    deck: str = "default"
+
+class ReviewCardResponse(BaseModel):
+    id: int
+    vocabulary: VocabularyResponse
+    deck: str
+    show_next: datetime
+    rating_id: Optional[int] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class ReviewAnswerRequest(BaseModel):
+    card_id: int
+    rating_id: int
+
+class ReviewStatusResponse(BaseModel):
+    due_count: int
+    deck_name: str
+
+
+# ==================== Quiz Schemas ====================
+class QuizAttemptCreate(BaseModel):
+    lesson_id: Optional[int] = None
+    quiz_type: str
+    score: int
+    total_questions: int
+    correct_answers: int
+    time_spent_seconds: int
+
+class QuizAttemptResponse(QuizAttemptCreate):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class MultipleChoiceQuestion(BaseModel):
+    id: str  # Unique ID for the question
+    vocabulary_id: int
+    question: str  # Chinese word or English meaning
+    correct_answer: str
+    options: List[str]
+    type: str  # "zh_to_en" or "en_to_zh"
+
+class MatchingPair(BaseModel):
+    zh: str
+    en: str
+    vocabulary_id: int
+
+class MatchingGameResponse(BaseModel):
+    pairs: List[MatchingPair]
+
+class SentenceGameQuestion(BaseModel):
+    sentence_id: int
+    characters: str
+    pinyin: str
+    meaning: str
+    words: List[str]  # Scrambled words for building the sentence
+
+
+# ==================== Stats Schemas ====================
+class DailyStat(BaseModel):
+    date: str
+    right_count: int
+    wrong_count: int
+
+class StatsTimelineResponse(BaseModel):
+    timeline: List[DailyStat]
+
+class WordStatResponse(BaseModel):
+    vocabulary_id: int
+    word: str
+    pinyin: str
+    meaning: str
+    right_count: int
+    wrong_count: int
+    percent_correct: float
+    last_seen: datetime
+    class Config:
+        from_attributes = True
+
+class StatsOverviewResponse(BaseModel):
+    new_words_today: int
+    reviewed_today: int
+    accuracy_percent: float
+    current_streak: int
+
+
+# ==================== Sentence Schemas ====================
+class SentenceBase(BaseModel):
+    characters: str
+    pinyin: Optional[str] = None
+    meaning: Optional[str] = None
+    lesson_id: Optional[int] = None
+    subunit: Optional[int] = None
+    order: int = 0
+    audio_url: Optional[str] = None
+
+class SentenceResponse(SentenceBase):
+    id: int
+    class Config:
+        from_attributes = True

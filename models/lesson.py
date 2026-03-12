@@ -35,6 +35,7 @@ class Lesson(Base):
     objectives = relationship("LessonObjective", back_populates="lesson", cascade="all, delete-orphan")
     grammar_points = relationship("GrammarPoint", back_populates="lesson", cascade="all, delete-orphan")
     exercises = relationship("Exercise", back_populates="lesson", cascade="all, delete-orphan")
+    sentences = relationship("Sentence", back_populates="lesson", cascade="all, delete-orphan")
 
 
 class Vocabulary(Base):
