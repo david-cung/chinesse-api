@@ -109,6 +109,7 @@ class VocabularyCreate(VocabularyBase):
 class VocabularyResponse(VocabularyBase):
     id: int
     hsk_level: Optional[int] = None
+    completed: bool = False
     examples: List[VocabularyExampleResponse] = []
 
     class Config:
@@ -197,6 +198,7 @@ class LessonSummary(BaseModel):
     title: str
     description: Optional[str] = None
     hsk_level: int
+    order: int = 0
     character_count: int
     vocabulary_count: int = 0
     estimated_time: int = 30
@@ -247,6 +249,7 @@ class LessonDetail(BaseModel):
     title: str
     description: Optional[str] = None
     hsk_level: int
+    order: int = 0
     estimated_time: int = 30
     # New fields for progress tracking
     vocabCount: int = 0
@@ -541,6 +544,33 @@ class StatsOverviewResponse(BaseModel):
     accuracy_percent: float
     current_streak: int
 
+class CurrentGoalProgressResponse(BaseModel):
+    current_level: str
+    progress_percent: float
+
+class DailyStudyTime(BaseModel):
+    day: str
+    hours: float
+
+class WeeklyStudyTimeResponse(BaseModel):
+    total_hours_this_week: float
+    change_percent: float
+    daily_stats: List[DailyStudyTime]
+
+class VocabGrowthResponse(BaseModel):
+    new_words_this_week: int
+    growth_percent: float
+
+class AchievementResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    icon: str
+    is_unlocked: bool
+    unlocked_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 # ==================== Sentence Schemas ====================
 class SentenceBase(BaseModel):

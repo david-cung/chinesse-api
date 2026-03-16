@@ -16,12 +16,24 @@ from utils.dependencies import get_current_user_optional
 router = APIRouter(prefix="/api/lessons", tags=["lessons"])
 
 @router.get("", response_model=List[LessonSummary])
-async def get_lessons(hsk_level: int = 1, db: Session = Depends(get_db)):
+async def get_lessons(
+    hsk_level: int = 1, 
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """Get all lessons for a specific HSK level"""
     lessons = db.query(Lesson).filter(
         Lesson.hsk_level == hsk_level,
         Lesson.is_published == True
     ).order_by(Lesson.order).all()
+    
+    # Get user progress if logged in
+    progress_map = {}
+    if current_user:
+        user_progress = db.query(UserProgress).filter(
+            UserProgress.user_id == current_user.id
+        ).all()
+        progress_map = {up.lesson_id: up.completed for up in user_progress}
     
     result = []
     for lesson in lessons:
@@ -33,7 +45,8 @@ async def get_lessons(hsk_level: int = 1, db: Session = Depends(get_db)):
             character_count=len(lesson.characters),
             vocabulary_count=len(lesson.vocabularies),
             estimated_time=lesson.estimated_time,
-            completed=False
+            order=lesson.order,
+            completed=progress_map.get(lesson.id, False)
         ))
     
     return result
@@ -58,11 +71,13 @@ async def get_lesson_detail(
     
     # Get user progress for this lesson
     status = "locked"
-    progress_percent = None
+    progress_percent = 0.0
     learned_vocab_count = 0
     learned_grammar_count = 0
     learned_listening_count = 0
     learned_speaking_count = 0
+    completed_vocab_ids = set()
+    completed_grammar_example_ids = set()
     
     if current_user:
         # Get this lesson's progress
@@ -107,12 +122,15 @@ async def get_lesson_detail(
         # 1. Vocabulary
         vocab_ids = [v.id for v in lesson.vocabularies]
         if vocab_ids:
-            learned_vocab_count = db.query(UserItemProgress).filter(
+            # Get IDs of vocabulary items the user has completed
+            cv_records = db.query(UserItemProgress.item_id).filter(
                 UserItemProgress.user_id == current_user.id,
                 UserItemProgress.item_type == "vocabulary",
                 UserItemProgress.item_id.in_(vocab_ids),
                 UserItemProgress.completed == True
-            ).count()
+            ).all()
+            completed_vocab_ids = {r[0] for r in cv_records}
+            learned_vocab_count = len(completed_vocab_ids)
         
         # 2. Grammar Examples
         grammar_example_ids = []
@@ -168,11 +186,26 @@ async def get_lesson_detail(
             ]
         })
     
+    # Construct vocabulary data with completed status
+    vocabulary_data = []
+    for v in lesson.vocabularies:
+        vocabulary_data.append({
+            "id": v.id,
+            "word": v.word,
+            "pinyin": v.pinyin,
+            "meaning": v.meaning,
+            "example": v.example,
+            "hsk_level": v.hsk_level,
+            "completed": v.id in completed_vocab_ids,
+            "examples": v.examples
+        })
+    
     return {
         "id": lesson.id,
         "title": lesson.title,
         "description": lesson.description,
         "hsk_level": lesson.hsk_level,
+        "order": lesson.order,
         "estimated_time": lesson.estimated_time,
         "vocabCount": len(lesson.vocabularies),
         "durationMinutes": lesson.estimated_time or 0,
@@ -183,7 +216,7 @@ async def get_lesson_detail(
         "learnedListeningCount": learned_listening_count,
         "learnedSpeakingCount": learned_speaking_count,
         "characters": lesson.characters,
-        "vocabulary": lesson.vocabularies,
+        "vocabulary": vocabulary_data,
         "objectives": sorted(lesson.objectives, key=lambda x: x.order),
         "grammar": grammar_data,
         "exercises": sorted(lesson.exercises, key=lambda x: x.order)

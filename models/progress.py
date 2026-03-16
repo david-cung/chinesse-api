@@ -75,3 +75,31 @@ class UserItemProgress(Base):
 
     # Relationships
     user = relationship("User", backref="item_progress")
+
+
+class Achievement(Base):
+    """Danh mục các cúp/thành tựu có trong hệ thống"""
+    __tablename__ = "achievements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    icon = Column(String, nullable=False) # "flame", "book", "award"
+    condition_type = Column(String, nullable=False) # "streak", "perfect_quiz", "lesson_complete", "vocab_learned"
+    condition_value = Column(Integer, nullable=False)
+
+
+class UserAchievement(Base):
+    """Lịch sử đạt cúp của người dùng"""
+    __tablename__ = "user_achievements"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'achievement_id', name='unique_user_achievement'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    achievement_id = Column(Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False)
+    unlocked_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="achievements")
+    achievement = relationship("Achievement")

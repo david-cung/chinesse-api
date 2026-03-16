@@ -4,8 +4,14 @@ from sqlalchemy import desc
 from typing import Optional
 from database.database import get_db
 from models.user import User
-from models.lesson import Lesson
-from models.progress import UserProgress
+from models.lesson import (
+    Lesson, Vocabulary, LessonObjective, 
+    GrammarPoint, GrammarExample, Exercise,
+    lesson_vocabulary
+)
+from models.sentence import Sentence
+from models.unit import Unit, UnitProgress
+from models.progress import UserProgress, UserItemProgress
 from schemas.schemas import (
     LearningContinueResponse, 
     CourseInfo, 
@@ -13,7 +19,6 @@ from schemas.schemas import (
     ProgressInfo,
     TrackItemRequest
 )
-from models.progress import UserProgress, UserItemProgress
 from utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/learning", tags=["learning"])
@@ -271,7 +276,7 @@ from schemas.schemas import (
     ResumeProgressInfo,
     ResumeNavigationInfo
 )
-from models.unit import Unit, UnitProgress, UNIT_TYPE_SCREENS
+from models.unit import UNIT_TYPE_SCREENS
 
 
 @router.get("/resume", response_model=LearningResumeResponse)
@@ -447,6 +452,65 @@ def track_item_progress(
         item_progress.completed = request.completed
         # Cập nhật thời gian truy cập cuối (tự động qua onupdate)
     
+    # -------------------------------------------------------------
+    # PROGRESS CALCULATION LOGIC
+    # -------------------------------------------------------------
+    # Step 1: Find corresponding lesson IDs based on item tracked
+    lesson_ids = []
+    if request.item_type == "vocabulary":
+        # Get all lessons that contain this vocabularyword through the association table
+        lessons_with_vocab = db.query(lesson_vocabulary.c.lesson_id).filter(
+            lesson_vocabulary.c.vocabulary_id == request.item_id
+        ).all()
+        lesson_ids = [l[0] for l in lessons_with_vocab]
+    elif request.item_type == "lesson":
+        lesson_ids = [request.item_id]
+            
+    # Step 2: Recalculate if lessons found
+    for lesson_id in lesson_ids:
+        if request.item_type == "lesson":
+            # Explicitly marking a lesson as completed
+            new_progress = 100.0 if request.completed else 0.0
+        else:
+            # We calculate progress against vocabulary count for this lesson
+            # Get all vocabulary IDs associated with this lesson
+            all_vocab_in_lesson = db.query(lesson_vocabulary.c.vocabulary_id).filter(
+                lesson_vocabulary.c.lesson_id == lesson_id
+            ).all()
+            vocab_ids = [v[0] for v in all_vocab_in_lesson]
+            total_items = len(vocab_ids)
+                
+            if total_items > 0:
+                # Count how many of these vocab_ids the user has completed
+                completed_items_count = db.query(UserItemProgress).filter(
+                    UserItemProgress.user_id == current_user.id,
+                    UserItemProgress.item_type == "vocabulary",
+                    UserItemProgress.item_id.in_(vocab_ids),
+                    UserItemProgress.completed == True
+                ).count()
+                
+                new_progress = min(100.0, (completed_items_count / total_items) * 100)
+            else:
+                new_progress = 100.0 if request.completed else 0.0
+            
+            # Update UserProgress table
+            user_progress = db.query(UserProgress).filter(
+                UserProgress.user_id == current_user.id,
+                UserProgress.lesson_id == lesson_id
+            ).first()
+            
+            if not user_progress:
+                user_progress = UserProgress(
+                    user_id=current_user.id,
+                    lesson_id=lesson_id,
+                    progress_percent=new_progress,
+                    completed=(new_progress >= 100.0)
+                )
+                db.add(user_progress)
+            else:
+                user_progress.progress_percent = new_progress
+                user_progress.completed = (new_progress >= 100.0)
+
     try:
         db.commit()
     except Exception as e:
