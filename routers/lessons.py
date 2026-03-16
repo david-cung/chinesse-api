@@ -43,7 +43,7 @@ async def get_lessons(
             description=lesson.description,
             hsk_level=lesson.hsk_level,
             character_count=len(lesson.characters),
-            vocabulary_count=len(lesson.vocabularies),
+            vocabulary_count=len(set([v.id for v in lesson.vocabularies])),
             estimated_time=lesson.estimated_time,
             order=lesson.order,
             completed=progress_map.get(lesson.id, False)
@@ -120,7 +120,7 @@ async def get_lesson_detail(
 
         # Calculate learned items
         # 1. Vocabulary
-        vocab_ids = [v.id for v in lesson.vocabularies]
+        vocab_ids = list(set([v.id for v in lesson.vocabularies]))
         if vocab_ids:
             # Get IDs of vocabulary items the user has completed
             cv_records = db.query(UserItemProgress.item_id).filter(
@@ -207,7 +207,7 @@ async def get_lesson_detail(
         "hsk_level": lesson.hsk_level,
         "order": lesson.order,
         "estimated_time": lesson.estimated_time,
-        "vocabCount": len(lesson.vocabularies),
+        "vocabCount": len(set([v.id for v in lesson.vocabularies])),
         "durationMinutes": lesson.estimated_time or 0,
         "status": status,
         "progressPercent": progress_percent,

@@ -452,6 +452,9 @@ def track_item_progress(
         item_progress.completed = request.completed
         # Cập nhật thời gian truy cập cuối (tự động qua onupdate)
     
+    # Force flush to ensure the count query below includes this change
+    db.flush()
+    
     # -------------------------------------------------------------
     # PROGRESS CALCULATION LOGIC
     # -------------------------------------------------------------
@@ -463,6 +466,19 @@ def track_item_progress(
             lesson_vocabulary.c.vocabulary_id == request.item_id
         ).all()
         lesson_ids = [l[0] for l in lessons_with_vocab]
+    elif request.item_type == "grammar_example":
+        from models.lesson import GrammarExample, GrammarPoint
+        # GrammarExample -> GrammarPoint -> Lesson
+        ge = db.query(GrammarExample).filter(GrammarExample.id == request.item_id).first()
+        if ge:
+            gp = db.query(GrammarPoint).filter(GrammarPoint.id == ge.grammar_point_id).first()
+            if gp:
+                lesson_ids = [gp.lesson_id]
+    elif request.item_type == "listening" or request.item_type == "speaking":
+        from models.unit import Unit
+        u = db.query(Unit).filter(Unit.id == request.item_id).first()
+        if u:
+            lesson_ids = [u.lesson_id]
     elif request.item_type == "lesson":
         lesson_ids = [request.item_id]
             
@@ -472,24 +488,52 @@ def track_item_progress(
             # Explicitly marking a lesson as completed
             new_progress = 100 if request.completed else 0
         else:
-            # We calculate progress against vocabulary count for this lesson
-            # Get all vocabulary IDs associated with this lesson
-            all_vocab_in_lesson = db.query(lesson_vocabulary.c.vocabulary_id).filter(
+            # Aggregate progress across all item types in this lesson
+            # 1. Vocab
+            all_vocab = db.query(lesson_vocabulary.c.vocabulary_id).filter(
                 lesson_vocabulary.c.lesson_id == lesson_id
             ).all()
-            vocab_ids = [v[0] for v in all_vocab_in_lesson]
-            total_items = len(vocab_ids)
-                
+            vocab_ids = list(set([v[0] for v in all_vocab]))
+            
+            # 2. Grammar Examples
+            from models.lesson import GrammarPoint, GrammarExample
+            all_ge = db.query(GrammarExample.id).join(GrammarPoint).filter(
+                GrammarPoint.lesson_id == lesson_id
+            ).all()
+            ge_ids = [g[0] for g in all_ge]
+            
+            # 3. Units (Listening/Speaking)
+            from models.unit import Unit
+            all_u = db.query(Unit.id).filter(Unit.lesson_id == lesson_id).all()
+            unit_ids = [u[0] for u in all_u]
+            
+            total_items = len(vocab_ids) + len(ge_ids) + len(unit_ids)
+            
             if total_items > 0:
-                # Count how many of these vocab_ids the user has completed
-                completed_items_count = db.query(UserItemProgress).filter(
+                # Count completed items
+                c_vocab = db.query(UserItemProgress).filter(
                     UserItemProgress.user_id == current_user.id,
                     UserItemProgress.item_type == "vocabulary",
                     UserItemProgress.item_id.in_(vocab_ids),
                     UserItemProgress.completed == True
-                ).count()
+                ).count() if vocab_ids else 0
                 
-                new_progress = round((completed_items_count / total_items) * 100)
+                c_ge = db.query(UserItemProgress).filter(
+                    UserItemProgress.user_id == current_user.id,
+                    UserItemProgress.item_type == "grammar_example",
+                    UserItemProgress.item_id.in_(ge_ids),
+                    UserItemProgress.completed == True
+                ).count() if ge_ids else 0
+                
+                c_u = db.query(UserItemProgress).filter(
+                    UserItemProgress.user_id == current_user.id,
+                    UserItemProgress.item_type.in_(["listening", "speaking"]),
+                    UserItemProgress.item_id.in_(unit_ids),
+                    UserItemProgress.completed == True
+                ).count() if unit_ids else 0
+                
+                completed_count = c_vocab + c_ge + c_u
+                new_progress = round((completed_count / total_items) * 100)
                 new_progress = min(100, new_progress)
             else:
                 new_progress = 100 if request.completed else 0
