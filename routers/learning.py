@@ -470,7 +470,7 @@ def track_item_progress(
     for lesson_id in lesson_ids:
         if request.item_type == "lesson":
             # Explicitly marking a lesson as completed
-            new_progress = 100.0 if request.completed else 0.0
+            new_progress = 100 if request.completed else 0
         else:
             # We calculate progress against vocabulary count for this lesson
             # Get all vocabulary IDs associated with this lesson
@@ -489,9 +489,10 @@ def track_item_progress(
                     UserItemProgress.completed == True
                 ).count()
                 
-                new_progress = min(100.0, (completed_items_count / total_items) * 100)
+                new_progress = round((completed_items_count / total_items) * 100)
+                new_progress = min(100, new_progress)
             else:
-                new_progress = 100.0 if request.completed else 0.0
+                new_progress = 100 if request.completed else 0
             
             # Update UserProgress table
             user_progress = db.query(UserProgress).filter(
