@@ -60,7 +60,7 @@ async def get_lesson_detail(
     """Get detailed information about a specific lesson with user progress"""
     lesson = db.query(Lesson).options(
         joinedload(Lesson.characters),
-        joinedload(Lesson.vocabularies),
+        joinedload(Lesson.vocabularies).joinedload(Vocabulary.examples),
         joinedload(Lesson.objectives),
         joinedload(Lesson.grammar_points).joinedload(GrammarPoint.examples),
         joinedload(Lesson.exercises)
