@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # Import routers
-from routers import auth, users, characters, lessons, learning, missions, leaderboard, pronunciation, review, quiz, stats, sentences
+from routers import auth, users, characters, lessons, learning, missions, leaderboard, pronunciation, review, quiz, stats, sentences, ai_chat, sync
 
 # Include routers
 app.include_router(auth.router)
@@ -66,6 +66,8 @@ app.include_router(review.router)
 app.include_router(quiz.router)
 app.include_router(stats.router)
 app.include_router(sentences.router)
+app.include_router(ai_chat.router)
+app.include_router(sync.router)
 
 @app.get("/")
 def read_root():

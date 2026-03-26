@@ -268,3 +268,19 @@ from utils.auth import get_current_user as get_current_user_dep
 def get_me(current_user: User = Depends(get_current_user_dep)):
     """Get current logged in user's information"""
     return current_user
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(
+    profile_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_dep)
+):
+    """Update current user's profile information"""
+    if "full_name" in profile_data:
+        current_user.full_name = profile_data["full_name"]
+    if "avatar" in profile_data:
+        current_user.avatar = profile_data["avatar"]
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user

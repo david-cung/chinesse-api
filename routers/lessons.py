@@ -1,6 +1,7 @@
 # routers/lessons.py
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql.expression import func
 from typing import List, Optional
 from database.database import get_db
 from models.lesson import (
@@ -48,6 +49,37 @@ async def get_lessons(
             order=lesson.order,
             completed=progress_map.get(lesson.id, False)
         ))
+    
+    return result
+
+@router.get("/grammar/featured")
+async def get_featured_grammar(
+    limit: int = 5,
+    db: Session = Depends(get_db)
+):
+    """Get random featured grammar points for the Home screen"""
+    grammar_points = db.query(GrammarPoint).options(
+        joinedload(GrammarPoint.examples),
+        joinedload(GrammarPoint.lesson)
+    ).order_by(func.random()).limit(limit).all()
+    
+    result = []
+    for gp in grammar_points:
+        result.append({
+            "id": gp.id,
+            "title": gp.title,
+            "explanation": gp.explanation,
+            "lesson_id": gp.lesson_id,
+            "lesson_title": gp.lesson.title,
+            "examples": [
+                {
+                    "id": ex.id,
+                    "example": ex.example,
+                    "translation": ex.translation
+                }
+                for ex in gp.examples[:2] # Limit to 2 examples for brevity
+            ]
+        })
     
     return result
 
